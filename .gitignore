@@ -1,0 +1,24 @@
+# Compiled python modules
+*.pyc
+*.spec
+
+# Pyinstaller folders
+/dist/
+/build/
+
+# Pycharm folders
+/venv/
+/.idea/
+/lib/__pycharm__/
+/__pycharm__/
+
+# Custom folders
+/releases/
+/logs/
+/log/
+/additional/
+
+# Python egg metadata, regenerated from source files by setuptools.
+/*.egg-info
+/*.egg
+/lib/*.egg-info
