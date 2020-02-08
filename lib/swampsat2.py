@@ -94,7 +94,7 @@ class ParseDownlink:
         import datetime
 
         # Expected packet lengths
-        packetlens = {'adac': 137, 'cdh': 112, 'eps': 116, 'battery': 15, 'vutrx': 28, 'ants': 4, 'stx': 22}
+        packetlens = {'eps': 116, 'battery': 15, 'vutrx': 28, 'ants': 4, 'stx': 22}
 
         # Clean input
         hexstr_cleaned, errmsg = ParseDownlink._cleaninput(hexstr, dlim)
@@ -117,41 +117,6 @@ class ParseDownlink:
             self.compileddata['messagenum'] = 1
             self.compileddata['messagetotal'] = 1
             self.compileddata['message'] = 'Gator Nation Is Everywhere! From SwampSat II'
-            self.compileddata['lastcommand'] = hexstr_cleaned[-2]
-            self.compileddata['awknowledgement'] = hexstr_cleaned[-1]
-
-        # Flight mode 1 first beacon
-        elif length == 112:
-
-            # Separate data packets
-            cdhlist = hexstr_cleaned[:packetlens['cdh']]
-
-            cdhdata = self._cdh(cdhlist)
-
-            self.compileddata = OrderedDict()
-            self.compileddata['timestamp'] = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-            self.compileddata['msgtype'] = 1
-            self.compileddata['messagenum'] = 1
-            self.compileddata['messagetotal'] = 2
-            self.compileddata.update(cdhdata)
-
-        # Flight mode 2 first beacon
-        elif length == 249:
-
-            # Separate data packets
-            cdhlist = hexstr_cleaned[:packetlens['cdh']]
-            adaclist = hexstr_cleaned[packetlens['cdh']:]
-
-            cdhdata = self._cdh(cdhlist)
-            adacdata = self._adac(adaclist)
-
-            self.compileddata = OrderedDict()
-            self.compileddata['timestamp'] = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-            self.compileddata['msgtype'] = 2
-            self.compileddata['messagenum'] = 1
-            self.compileddata['messagetotal'] = 2
-            self.compileddata.update(cdhdata)
-            self.compileddata.update(adacdata)
 
         # Flight mode 1 second beacon
         elif length == 163:
@@ -246,7 +211,7 @@ class ParseDownlink:
 
         else:
 
-            self._errmsg = '\t\t\tLength of hex string must be equal to one of the following lengths: 112, 249, 163, 185'
+            self._errmsg = '\t\t\tNot a valid SS2 beacon'
 
         if self._errmsg != '':
 
@@ -259,9 +224,7 @@ class ParseDownlink:
     def _cleaninput(hstr, dlim):
 
         # Clean input
-        hstr_cleaned = hstr.lower().strip().replace(' ', '').replace(dlim, '').replace('\t', '').replace('\r',
-                                                                                                         '').replace(
-            '\n', '')
+        hstr_cleaned = hstr.lower().strip().replace(' ', '').replace(dlim, '').replace('\t', '').replace('\r', '').replace('\n', '')
 
         # Check length
         if len(hstr_cleaned) == 0:
@@ -372,196 +335,6 @@ class ParseDownlink:
             hexnum = ''.join([data[i] for i in reversed(range(8))])  # Read and concatenate hex bytes in reverse order
             [data.pop(i) for i in reversed(range(8))]  # Remove used elements
             return ParseDownlink.hextodouble(hexnum)  # Convert hex to numeric
-
-    @staticmethod
-    def _cdh(hexarray):
-        from collections import OrderedDict
-
-        ordict = OrderedDict()
-        ordict['cdh_deployment_isis'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_deployment_solarpanel'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_deployment_magnetometer'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_deployment_payload'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_deployment_magnetometer_deployattempts'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        hexarray.pop(0)  # 1 byte padding
-        ordict['cdh_bootcounter'] = ParseDownlink._parsebinary(hexarray, 'uint16')
-        ordict['cdh_programduration'] = ParseDownlink._parsebinary(hexarray, 'uint32')
-        ordict['cdh_deployment_satellite'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_currentmode'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_temperature_obc'] = \
-            ParseDownlink._parsebinary(hexarray, 'uint32') / 100000000  # Division converts uint32 to single/float32
-        ordict['cdh_temperature_motor'] = \
-            ParseDownlink._parsebinary(hexarray, 'uint32') / 100000000  # Division converts uint32 to single/float32
-        ordict['cdh_temperature_vlf'] = \
-            ParseDownlink._parsebinary(hexarray, 'uint32') / 100000000  # Division converts uint32 to single/float32
-        [hexarray.pop(0) for _ in range(2)]  # 2 byte padding
-        ordict['cdh_usage_cpu'] = ParseDownlink._parsebinary(hexarray, 'single') * 100
-        ordict['cdh_usage_memory'] = ParseDownlink._parsebinary(hexarray, 'single') / 1024 / 1024
-        ordict['cdh_usage_camera'] = ParseDownlink._parsebinary(hexarray, 'uint32')
-        ordict['cdh_usage_science'] = ParseDownlink._parsebinary(hexarray, 'uint32')
-        ordict['cdh_batterythreshold_safe'] = ParseDownlink._parsebinary(hexarray, 'single')
-        ordict['cdh_batterythreshold_low'] = ParseDownlink._parsebinary(hexarray, 'single')
-        ordict['cdh_batterythreshold_critical'] = ParseDownlink._parsebinary(hexarray, 'single')
-        ordict['cdh_beacon_state'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_downlink_status'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_downlink_frequency'] = ParseDownlink._parsebinary(hexarray, 'uint16')
-        ordict['cdh_beacon_frequency_tx'] = ParseDownlink._parsebinary(hexarray, 'uint16')
-        ordict['cdh_beacon_frequency_rx'] = ParseDownlink._parsebinary(hexarray, 'uint16')
-        ordict['cdh_beacon_lastuplinktime'] = ParseDownlink._parsebinary(hexarray, 'uint32')
-        ordict['cdh_downlink_scienceradio'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_downlink_imageradio'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_beacon_speed'] = ParseDownlink._parsebinary(hexarray, 'uint16')
-        ordict['cdh_downlink_vutrxpower'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_downlink_stxpower'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_scienceready'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_detumble_memsmultiplier'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_detumble_detumblestate'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_detumble_angularestimator'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_detumble_controlmode'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        hexarray.pop(0)  # 1 byte padding
-        ordict['cdh_detumble_angularthreshold_high_x'] = ParseDownlink._parsebinary(hexarray, 'single')
-        ordict['cdh_detumble_angularthreshold_high_y'] = ParseDownlink._parsebinary(hexarray, 'single')
-        ordict['cdh_detumble_angularthreshold_high_z'] = ParseDownlink._parsebinary(hexarray, 'single')
-        ordict['cdh_detumble_angularthreshold_low_x'] = ParseDownlink._parsebinary(hexarray, 'single')
-        ordict['cdh_detumble_angularthreshold_low_y'] = ParseDownlink._parsebinary(hexarray, 'single')
-        ordict['cdh_detumble_angularthreshold_low_z'] = ParseDownlink._parsebinary(hexarray, 'single')
-        ordict['cdh_detumble_flag_tle'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_detumble_flag_ymomentum'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_detumble_flag_ywheel'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        hexarray.pop(0)  # 1 byte padding
-        ordict['cdh_detumble_flag_previouscontrolonset'] = ParseDownlink._parsebinary(hexarray, 'uint32')
-
-        return ordict
-
-    @staticmethod
-    def _adac(hexarray):
-        from collections import OrderedDict
-
-        ordict = OrderedDict()
-
-        # 1 Byte of bit flags
-        bitflags_bootstatus = ParseDownlink._parsebinary(hexarray, 'bool', 1)
-        ordict['adac_bootstatus_newselection'] = bitflags_bootstatus[0]
-        ordict['adac_bootstatus_bootsuccess'] = bitflags_bootstatus[1]
-        ordict['adac_bootstatus_failedbootattempt_1'] = bitflags_bootstatus[2]
-        ordict['adac_bootstatus_failedbootattempt_2'] = bitflags_bootstatus[3]
-        ordict['adac_bootstatus_failedbootattempt_3'] = bitflags_bootstatus[4]
-
-        ordict['adac_bootcounter'] = ParseDownlink._parsebinary(hexarray, 'uint16')
-        ordict['adac_secondssinceboot'] = ParseDownlink._parsebinary(hexarray, 'uint16')
-        ordict['adac_latchup_sram_1'] = ParseDownlink._parsebinary(hexarray, 'uint16')
-        ordict['adac_latchup_sram_2'] = ParseDownlink._parsebinary(hexarray, 'uint16')
-        ordict['adac_error_edac_single'] = ParseDownlink._parsebinary(hexarray, 'uint16')
-        ordict['adac_error_edac_double'] = ParseDownlink._parsebinary(hexarray, 'uint16')
-        ordict['adac_error_edac_multiple'] = ParseDownlink._parsebinary(hexarray, 'uint16')
-
-        # 6 Bytes of bit flags
-        bitflags_currentstate = ParseDownlink._parsebinary(hexarray, 'bool', 6)
-        ordict['adac_currentstate_mode_attitudeestimation'] = bitflags_currentstate[0]
-        ordict['adac_currentstate_mode_control'] = bitflags_currentstate[1]
-        ordict['adac_currentstate_mode_adcsrun'] = bitflags_currentstate[2]
-        ordict['adac_currentstate_enable_cubecontrol_signal'] = bitflags_currentstate[3]
-        ordict['adac_currentstate_enable_cubecontrol_motor'] = bitflags_currentstate[4]
-        ordict['adac_currentstate_enable_cubesense'] = bitflags_currentstate[5]
-        ordict['adac_currentstate_enable_cubewheel_1'] = bitflags_currentstate[6]
-        ordict['adac_currentstate_enable_cubewheel_2'] = bitflags_currentstate[7]
-        ordict['adac_currentstate_enable_cubewheel_3'] = bitflags_currentstate[8]
-        ordict['adac_currentstate_enable_cubestar'] = bitflags_currentstate[9]
-        ordict['adac_currentstate_enable_gpsreceiver'] = bitflags_currentstate[10]
-        ordict['adac_currentstate_enable_gpslnapower'] = bitflags_currentstate[11]
-        ordict['adac_currentstate_enable_motordriver'] = bitflags_currentstate[12]
-        ordict['adac_currentstate_sunabovehorizon'] = bitflags_currentstate[13]
-        ordict['adac_currentstate_error_cubesense_communication'] = bitflags_currentstate[14]
-        ordict['adac_currentstate_error_cubecontrol_signalcommunications'] = bitflags_currentstate[15]
-        ordict['adac_currentstate_error_cubecontrol_motorcommunication'] = bitflags_currentstate[16]
-        ordict['adac_currentstate_error_cubewheel_communication_1'] = bitflags_currentstate[17]
-        ordict['adac_currentstate_error_cubewheel_communication_2'] = bitflags_currentstate[18]
-        ordict['adac_currentstate_error_cubewheel_communication_3'] = bitflags_currentstate[19]
-        ordict['adac_currentstate_error_cubestar_communication'] = bitflags_currentstate[20]
-        ordict['adac_currentstate_error_magnetometer_range'] = bitflags_currentstate[21]
-        ordict['adac_currentstate_error_sunsensor_overcurrent'] = bitflags_currentstate[22]
-        ordict['adac_currentstate_error_sunsensor_busy'] = bitflags_currentstate[23]
-        ordict['adac_currentstate_error_sunsensor_detection'] = bitflags_currentstate[24]
-        ordict['adac_currentstate_error_sunsensor_range'] = bitflags_currentstate[25]
-        ordict['adac_currentstate_error_nadirsensor_overcurrent'] = bitflags_currentstate[26]
-        ordict['adac_currentstate_error_nadirsensor_busy'] = bitflags_currentstate[27]
-        ordict['adac_currentstate_error_nadirsensor_detection'] = bitflags_currentstate[28]
-        ordict['adac_currentstate_error_nadirsensor_range'] = bitflags_currentstate[29]
-        ordict['adac_currentstate_error_ratesensor_range'] = bitflags_currentstate[30]
-        ordict['adac_currentstate_error_wheelspeed_range'] = bitflags_currentstate[31]
-        ordict['adac_currentstate_error_coarsesunsensor'] = bitflags_currentstate[32]
-        ordict['adac_currentstate_error_startracker_match'] = bitflags_currentstate[33]
-        ordict['adac_currentstate_error_startracker_overcurrent'] = bitflags_currentstate[34]
-        ordict['adac_currentstate_invalid_orbitparameters'] = bitflags_currentstate[35]
-        ordict['adac_currentstate_invalid_configuration'] = bitflags_currentstate[36]
-        ordict['adac_currentstate_invalid_controlmodechange'] = bitflags_currentstate[37]
-        ordict['adac_currentstate_invalid_estimatorchange'] = bitflags_currentstate[38]
-        ordict['adac_currentstate_error_magneticfield_modelmeasurementdisagree'] = bitflags_currentstate[39]
-        ordict['adac_currentstate_error_noderecovery'] = bitflags_currentstate[40]
-
-        ordict['adac_estimated_roll'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.01
-        ordict['adac_estimated_pitch'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.01
-        ordict['adac_estimated_yaw'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.01
-        ordict['adac_estimated_angularrate_x'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.01
-        ordict['adac_estimated_angularrate_y'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.01
-        ordict['adac_estimated_angularrate_z'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.01
-        ordict['adac_estimated_position_x'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.25
-        ordict['adac_estimated_position_y'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.25
-        ordict['adac_estimated_position_z'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.25
-        ordict['adac_estimated_velocity_x'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.25
-        ordict['adac_estimated_velocity_y'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.25
-        ordict['adac_estimated_velocity_z'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.25
-        ordict['adac_estimated_magneticfield_x'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.01
-        ordict['adac_estimated_magneticfield_y'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.01
-        ordict['adac_estimated_magneticfield_z'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.01
-        ordict['adac_estimated_sunvector_x'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.0001
-        ordict['adac_estimated_sunvector_y'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.0001
-        ordict['adac_estimated_sunvector_z'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.0001
-        ordict['adac_measured_angularrate_x'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.01
-        ordict['adac_measured_angularrate_y'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.01
-        ordict['adac_measured_angularrate_z'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.01
-        ordict['adac_measured_wheel_x'] = ParseDownlink._parsebinary(hexarray, 'int16')
-        ordict['adac_measured_wheel_y'] = ParseDownlink._parsebinary(hexarray, 'int16')
-        ordict['adac_measured_wheel_z'] = ParseDownlink._parsebinary(hexarray, 'int16')
-        ordict['adac_magnetorquer_commands_x'] = ParseDownlink._parsebinary(hexarray, 'int16') * 10
-        ordict['adac_magnetorquer_commands_y'] = ParseDownlink._parsebinary(hexarray, 'int16') * 10
-        ordict['adac_magnetorquer_commands_z'] = ParseDownlink._parsebinary(hexarray, 'int16') * 10
-        ordict['adac_ywheel_command'] = ParseDownlink._parsebinary(hexarray, 'int16')
-        ordict['adac_raw_sunsensor_xpos'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['adac_raw_sunsensor_ypos'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['adac_raw_sunsensor_zpos'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['adac_raw_sunsensor_xneg'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['adac_raw_sunsensor_yneg'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['adac_raw_sunsensor_zneg'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['adac_raw_magnetometer_x'] = ParseDownlink._parsebinary(hexarray, 'int16')
-        ordict['adac_raw_magnetometer_y'] = ParseDownlink._parsebinary(hexarray, 'int16')
-        ordict['adac_raw_magnetometer_z'] = ParseDownlink._parsebinary(hexarray, 'int16')
-        ordict['adac_current_3v3'] = ParseDownlink._parsebinary(hexarray, 'uint16') * 0.48828125
-        ordict['adac_current_5v'] = ParseDownlink._parsebinary(hexarray, 'uint16') * 0.48828125
-        ordict['adac_current_vbat'] = ParseDownlink._parsebinary(hexarray, 'uint16') * 0.48828125
-        ordict['adac_current_ywheel'] = ParseDownlink._parsebinary(hexarray, 'uint16') * 0.01
-        ordict['adac_temperature_mcu'] = ParseDownlink._parsebinary(hexarray, 'int16') * 1
-        ordict['adac_temperature_magnetometer'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.1
-        ordict['adac_temperature_ratesensor_x'] = ParseDownlink._parsebinary(hexarray, 'int16') * 1
-        ordict['adac_temperature_ratesensor_y'] = ParseDownlink._parsebinary(hexarray, 'int16') * 1
-        ordict['adac_temperature_ratesensor_z'] = ParseDownlink._parsebinary(hexarray, 'int16') * 1
-        ordict['adac_gpsstatus_solutionstatus'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['adac_gpsstatus_trackedsatellites'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['adac_gpsstatus_usedsatellites'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['adac_gpsstatus_xyzlofcounter'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['adac_gpsstatus_rangelogcounter'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['adac_gpsstatus_responsemessage'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['adac_gps_time'] = \
-            ParseDownlink._parsebinary(hexarray, 'uint32') / 1000 + 315964800 + \
-            (ParseDownlink._parsebinary(hexarray, 'uint16') + 2048) * 7 * 24 * 60 * 60
-        ordict['adac_gps_position_x'] = ParseDownlink._parsebinary(hexarray, 'int32') * 0.001
-        ordict['adac_gps_velocity_x'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.001
-        ordict['adac_gps_position_y'] = ParseDownlink._parsebinary(hexarray, 'int32') * 0.001
-        ordict['adac_gps_velocity_y'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.001
-        ordict['adac_gps_position_z'] = ParseDownlink._parsebinary(hexarray, 'int32') * 0.001
-        ordict['adac_gps_velocity_z'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.001
-
-        return ordict
 
     @staticmethod
     def _eps(hexarray):
@@ -819,7 +592,7 @@ def main():
     import os
     import datetime
 
-    options = docopt(__doc__, version='1.0.10')  # parse options based on docstring above
+    options = docopt(__doc__, version='1.0.11')  # parse options based on docstring above
 
     print('SwampSat II Beacon Parser (UF CubeSat)\n')
 
