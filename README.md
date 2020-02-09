@@ -107,6 +107,8 @@ The default behavior is to read the file type from the file path; thus this flag
 
 Examples of acceptable files can be found on GitHub: `github.com/ralent/swampsat2`
 
+**Note** This parser only accepts the **TEXT** representation of the `.kiss` log, not the raw .kss output (file examples on GitHub)
+
 **Options Flag `image`:**
 
 You should use this flag if you expect your file to have image data (JPG); this flag will try to parse an image from the data in the file
