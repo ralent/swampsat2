@@ -1,8 +1,8 @@
-#README
+# README
 
 
 
-##COMPATIBLE PLATFORMS
+## COMPATIBLE PLATFORMS
 
 
 Windows
@@ -11,7 +11,7 @@ Linux
 
 
 
-##INSTALL
+## INSTALL
 
 
 On Windows or Linux, the following command will install the python package:
@@ -36,7 +36,7 @@ Run the following command on linux to install `pip`:
 
 
 
-##NOTES
+## NOTES
 
 
 The SwampSat II beacon parser utility is implemented in Python and can be called from command-line. The input/data, whether a string or file containing strings, must be in HEX
@@ -65,7 +65,7 @@ The SwampSat II beacon parser utility is implemented in Python and can be called
 
 
 
-##USAGE: COMMAND-LINE
+## USAGE: COMMAND-LINE
 
 
 Usage:
