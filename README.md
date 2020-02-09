@@ -70,9 +70,9 @@ The SwampSat II beacon parser utility is implemented in Python and can be called
 
 Usage:
 
-	swampsat2 [-l LOGFILE] [-d DELIMITER] [-f FILE]
+	swampsat2 [-i] [-l LOGFILE] [-t FILETYPE] [-d DELIMITER] [-f FILE]
 	
-	swampsat2 [-l LOGFILE] [-d DELIMITER] [-s HEXSTRING]
+	swampsat2 [-i] [-l LOGFILE] [-t FILETYPE] [-d DELIMITER] [-s HEXSTRING]
 
 Parse SwampSat II beacons from either a file or command-line string
 
@@ -84,6 +84,10 @@ Options:
 
 	-l LOGFILE, --logfile=LOGFILE  file where parsed data will be saved [default: [$HOME]/ss2logs/ss2beacon_parsed_[$TIMESTAMP].json]
 
+	-t FILETYPE, --filetype=FILETYPE     file type of input file (default behavior is to read the file extension, valid extensions are: '.txt', '.log', '.kss')
+
+	-i, --image                          flag to read data as jpg image (log name remains the same as default but a .jpg file extension is added)
+
 	-d DELIMITER, --delimiter=DELIMITER  delimiter for input HEX string (whitespace is automatically removed)
 
 	-h --help  prints this help message
@@ -92,6 +96,22 @@ Options:
 
 
 ---
+
+**Options Flag `FILETYPE`:**
+
+The `FILETYPE` option let's you provide the file type the parser should expect
+
+The parser can accept either `.log`, `.txt` or `.kss` files (`.log` and `.txt` are treated the same)
+
+The default behavior is to read the file type from the file path; thus this flag should usually not be necessary
+
+Examples of acceptable files can be found on GitHub: `github.com/ralent/swampsat2`
+
+**Options Flag `image`:**
+
+You should use this flag if you expect your file to have image data (JPG); this flag will try to parse an image from the data in the file
+
+The default log path remains the same except that the file is saved with a `.jpg` extension
 
 **Options Flag `DELIMITER`:**
 

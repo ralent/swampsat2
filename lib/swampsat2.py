@@ -21,8 +21,8 @@
 # SOFTWARE.
 
 
-"""Usage: swampsat2 [-l LOGFILE] [-d DELIMITER] [-f FILE]
-          swampsat2 [-l LOGFILE] [-d DELIMITER] [-s HEXSTRING]
+"""Usage: swampsat2 [-i] [-l LOGFILE] [-t FILETYPE] [-d DELIMITER] [-f FILE]
+          swampsat2 [-i] [-l LOGFILE] [-t FILETYPE] [-d DELIMITER] [-s HEXSTRING]
 
 Parse SwampSat II beacons from either a file or command-line string
 
@@ -30,8 +30,10 @@ Options:
   -f FILE, --file=FILE                 input file containing hex strings from a SwampSat II beacon
   -s HEXSTRING, --hexstring=HEXSTRING  hex string from a SwampSat II beacon
   -l LOGFILE, --logfile=LOGFILE        file where parsed data will be saved [default: [$HOME]/ss2logs/ss2beacon_parsed_[$TIMESTAMP].json]
+  -t FILETYPE, --filetype=FILETYPE     file type of input file (default behavior is to read the file extension, valid extensions are: '.txt', '.log', '.kss')
+  -i, --image                          flag to read data as jpg image (log name remains the same as default but a .jpg file extension is added)
   -d DELIMITER, --delimiter=DELIMITER  delimiter for input HEX string (whitespace is automatically removed)
-  -h --help                            prints this help message
+  -h, --help                           prints this help message
   --version                            prints current version
 
 """
@@ -94,7 +96,7 @@ class ParseDownlink:
         import datetime
 
         # Expected packet lengths
-        packetlens = {'adac': 137, 'cdh': 112, 'eps': 116, 'battery': 15, 'vutrx': 28, 'ants': 4, 'stx': 22}
+        packetlens = {'eps': 116, 'battery': 15, 'vutrx': 28, 'ants': 4, 'stx': 22}
 
         # Clean input
         hexstr_cleaned, errmsg = ParseDownlink._cleaninput(hexstr, dlim)
@@ -117,41 +119,6 @@ class ParseDownlink:
             self.compileddata['messagenum'] = 1
             self.compileddata['messagetotal'] = 1
             self.compileddata['message'] = 'Gator Nation Is Everywhere! From SwampSat II'
-            self.compileddata['lastcommand'] = hexstr_cleaned[-2]
-            self.compileddata['awknowledgement'] = hexstr_cleaned[-1]
-
-        # Flight mode 1 first beacon
-        elif length == 112:
-
-            # Separate data packets
-            cdhlist = hexstr_cleaned[:packetlens['cdh']]
-
-            cdhdata = self._cdh(cdhlist)
-
-            self.compileddata = OrderedDict()
-            self.compileddata['timestamp'] = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-            self.compileddata['msgtype'] = 1
-            self.compileddata['messagenum'] = 1
-            self.compileddata['messagetotal'] = 2
-            self.compileddata.update(cdhdata)
-
-        # Flight mode 2 first beacon
-        elif length == 249:
-
-            # Separate data packets
-            cdhlist = hexstr_cleaned[:packetlens['cdh']]
-            adaclist = hexstr_cleaned[packetlens['cdh']:]
-
-            cdhdata = self._cdh(cdhlist)
-            adacdata = self._adac(adaclist)
-
-            self.compileddata = OrderedDict()
-            self.compileddata['timestamp'] = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-            self.compileddata['msgtype'] = 2
-            self.compileddata['messagenum'] = 1
-            self.compileddata['messagetotal'] = 2
-            self.compileddata.update(cdhdata)
-            self.compileddata.update(adacdata)
 
         # Flight mode 1 second beacon
         elif length == 163:
@@ -246,7 +213,7 @@ class ParseDownlink:
 
         else:
 
-            self._errmsg = '\t\t\tLength of hex string must be equal to one of the following lengths: 112, 249, 163, 185'
+            self._errmsg = '\t\t  Not a valid SS2 beacon'
 
         if self._errmsg != '':
 
@@ -259,17 +226,15 @@ class ParseDownlink:
     def _cleaninput(hstr, dlim):
 
         # Clean input
-        hstr_cleaned = hstr.lower().strip().replace(' ', '').replace(dlim, '').replace('\t', '').replace('\r',
-                                                                                                         '').replace(
-            '\n', '')
+        hstr_cleaned = hstr.lower().strip().replace(' ', '').replace(dlim, '').replace('\t', '').replace('\r', '').replace('\n', '')
 
         # Check length
         if len(hstr_cleaned) == 0:
-            return [], '\t\t\tString is empty'
+            return [], '\t\t  String is empty'
 
         # Check if the string contains anything except for hex values and the delimiter
         if ParseDownlink._validatehex(hstr_cleaned, dlim):
-            return [], '\t\t\tInvalid character found in string'
+            return [], '\t\t  Invalid character found in string'
 
         # Split hex string into list of bytes
         return [hstr_cleaned[i:i + 2] for i in range(0, len(hstr_cleaned), 2)], ''
@@ -372,196 +337,6 @@ class ParseDownlink:
             hexnum = ''.join([data[i] for i in reversed(range(8))])  # Read and concatenate hex bytes in reverse order
             [data.pop(i) for i in reversed(range(8))]  # Remove used elements
             return ParseDownlink.hextodouble(hexnum)  # Convert hex to numeric
-
-    @staticmethod
-    def _cdh(hexarray):
-        from collections import OrderedDict
-
-        ordict = OrderedDict()
-        ordict['cdh_deployment_isis'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_deployment_solarpanel'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_deployment_magnetometer'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_deployment_payload'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_deployment_magnetometer_deployattempts'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        hexarray.pop(0)  # 1 byte padding
-        ordict['cdh_bootcounter'] = ParseDownlink._parsebinary(hexarray, 'uint16')
-        ordict['cdh_programduration'] = ParseDownlink._parsebinary(hexarray, 'uint32')
-        ordict['cdh_deployment_satellite'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_currentmode'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_temperature_obc'] = \
-            ParseDownlink._parsebinary(hexarray, 'uint32') / 100000000  # Division converts uint32 to single/float32
-        ordict['cdh_temperature_motor'] = \
-            ParseDownlink._parsebinary(hexarray, 'uint32') / 100000000  # Division converts uint32 to single/float32
-        ordict['cdh_temperature_vlf'] = \
-            ParseDownlink._parsebinary(hexarray, 'uint32') / 100000000  # Division converts uint32 to single/float32
-        [hexarray.pop(0) for _ in range(2)]  # 2 byte padding
-        ordict['cdh_usage_cpu'] = ParseDownlink._parsebinary(hexarray, 'single') * 100
-        ordict['cdh_usage_memory'] = ParseDownlink._parsebinary(hexarray, 'single') / 1024 / 1024
-        ordict['cdh_usage_camera'] = ParseDownlink._parsebinary(hexarray, 'uint32')
-        ordict['cdh_usage_science'] = ParseDownlink._parsebinary(hexarray, 'uint32')
-        ordict['cdh_batterythreshold_safe'] = ParseDownlink._parsebinary(hexarray, 'single')
-        ordict['cdh_batterythreshold_low'] = ParseDownlink._parsebinary(hexarray, 'single')
-        ordict['cdh_batterythreshold_critical'] = ParseDownlink._parsebinary(hexarray, 'single')
-        ordict['cdh_beacon_state'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_downlink_status'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_downlink_frequency'] = ParseDownlink._parsebinary(hexarray, 'uint16')
-        ordict['cdh_beacon_frequency_tx'] = ParseDownlink._parsebinary(hexarray, 'uint16')
-        ordict['cdh_beacon_frequency_rx'] = ParseDownlink._parsebinary(hexarray, 'uint16')
-        ordict['cdh_beacon_lastuplinktime'] = ParseDownlink._parsebinary(hexarray, 'uint32')
-        ordict['cdh_downlink_scienceradio'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_downlink_imageradio'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_beacon_speed'] = ParseDownlink._parsebinary(hexarray, 'uint16')
-        ordict['cdh_downlink_vutrxpower'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_downlink_stxpower'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_scienceready'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_detumble_memsmultiplier'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_detumble_detumblestate'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_detumble_angularestimator'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_detumble_controlmode'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        hexarray.pop(0)  # 1 byte padding
-        ordict['cdh_detumble_angularthreshold_high_x'] = ParseDownlink._parsebinary(hexarray, 'single')
-        ordict['cdh_detumble_angularthreshold_high_y'] = ParseDownlink._parsebinary(hexarray, 'single')
-        ordict['cdh_detumble_angularthreshold_high_z'] = ParseDownlink._parsebinary(hexarray, 'single')
-        ordict['cdh_detumble_angularthreshold_low_x'] = ParseDownlink._parsebinary(hexarray, 'single')
-        ordict['cdh_detumble_angularthreshold_low_y'] = ParseDownlink._parsebinary(hexarray, 'single')
-        ordict['cdh_detumble_angularthreshold_low_z'] = ParseDownlink._parsebinary(hexarray, 'single')
-        ordict['cdh_detumble_flag_tle'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_detumble_flag_ymomentum'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['cdh_detumble_flag_ywheel'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        hexarray.pop(0)  # 1 byte padding
-        ordict['cdh_detumble_flag_previouscontrolonset'] = ParseDownlink._parsebinary(hexarray, 'uint32')
-
-        return ordict
-
-    @staticmethod
-    def _adac(hexarray):
-        from collections import OrderedDict
-
-        ordict = OrderedDict()
-
-        # 1 Byte of bit flags
-        bitflags_bootstatus = ParseDownlink._parsebinary(hexarray, 'bool', 1)
-        ordict['adac_bootstatus_newselection'] = bitflags_bootstatus[0]
-        ordict['adac_bootstatus_bootsuccess'] = bitflags_bootstatus[1]
-        ordict['adac_bootstatus_failedbootattempt_1'] = bitflags_bootstatus[2]
-        ordict['adac_bootstatus_failedbootattempt_2'] = bitflags_bootstatus[3]
-        ordict['adac_bootstatus_failedbootattempt_3'] = bitflags_bootstatus[4]
-
-        ordict['adac_bootcounter'] = ParseDownlink._parsebinary(hexarray, 'uint16')
-        ordict['adac_secondssinceboot'] = ParseDownlink._parsebinary(hexarray, 'uint16')
-        ordict['adac_latchup_sram_1'] = ParseDownlink._parsebinary(hexarray, 'uint16')
-        ordict['adac_latchup_sram_2'] = ParseDownlink._parsebinary(hexarray, 'uint16')
-        ordict['adac_error_edac_single'] = ParseDownlink._parsebinary(hexarray, 'uint16')
-        ordict['adac_error_edac_double'] = ParseDownlink._parsebinary(hexarray, 'uint16')
-        ordict['adac_error_edac_multiple'] = ParseDownlink._parsebinary(hexarray, 'uint16')
-
-        # 6 Bytes of bit flags
-        bitflags_currentstate = ParseDownlink._parsebinary(hexarray, 'bool', 6)
-        ordict['adac_currentstate_mode_attitudeestimation'] = bitflags_currentstate[0]
-        ordict['adac_currentstate_mode_control'] = bitflags_currentstate[1]
-        ordict['adac_currentstate_mode_adcsrun'] = bitflags_currentstate[2]
-        ordict['adac_currentstate_enable_cubecontrol_signal'] = bitflags_currentstate[3]
-        ordict['adac_currentstate_enable_cubecontrol_motor'] = bitflags_currentstate[4]
-        ordict['adac_currentstate_enable_cubesense'] = bitflags_currentstate[5]
-        ordict['adac_currentstate_enable_cubewheel_1'] = bitflags_currentstate[6]
-        ordict['adac_currentstate_enable_cubewheel_2'] = bitflags_currentstate[7]
-        ordict['adac_currentstate_enable_cubewheel_3'] = bitflags_currentstate[8]
-        ordict['adac_currentstate_enable_cubestar'] = bitflags_currentstate[9]
-        ordict['adac_currentstate_enable_gpsreceiver'] = bitflags_currentstate[10]
-        ordict['adac_currentstate_enable_gpslnapower'] = bitflags_currentstate[11]
-        ordict['adac_currentstate_enable_motordriver'] = bitflags_currentstate[12]
-        ordict['adac_currentstate_sunabovehorizon'] = bitflags_currentstate[13]
-        ordict['adac_currentstate_error_cubesense_communication'] = bitflags_currentstate[14]
-        ordict['adac_currentstate_error_cubecontrol_signalcommunications'] = bitflags_currentstate[15]
-        ordict['adac_currentstate_error_cubecontrol_motorcommunication'] = bitflags_currentstate[16]
-        ordict['adac_currentstate_error_cubewheel_communication_1'] = bitflags_currentstate[17]
-        ordict['adac_currentstate_error_cubewheel_communication_2'] = bitflags_currentstate[18]
-        ordict['adac_currentstate_error_cubewheel_communication_3'] = bitflags_currentstate[19]
-        ordict['adac_currentstate_error_cubestar_communication'] = bitflags_currentstate[20]
-        ordict['adac_currentstate_error_magnetometer_range'] = bitflags_currentstate[21]
-        ordict['adac_currentstate_error_sunsensor_overcurrent'] = bitflags_currentstate[22]
-        ordict['adac_currentstate_error_sunsensor_busy'] = bitflags_currentstate[23]
-        ordict['adac_currentstate_error_sunsensor_detection'] = bitflags_currentstate[24]
-        ordict['adac_currentstate_error_sunsensor_range'] = bitflags_currentstate[25]
-        ordict['adac_currentstate_error_nadirsensor_overcurrent'] = bitflags_currentstate[26]
-        ordict['adac_currentstate_error_nadirsensor_busy'] = bitflags_currentstate[27]
-        ordict['adac_currentstate_error_nadirsensor_detection'] = bitflags_currentstate[28]
-        ordict['adac_currentstate_error_nadirsensor_range'] = bitflags_currentstate[29]
-        ordict['adac_currentstate_error_ratesensor_range'] = bitflags_currentstate[30]
-        ordict['adac_currentstate_error_wheelspeed_range'] = bitflags_currentstate[31]
-        ordict['adac_currentstate_error_coarsesunsensor'] = bitflags_currentstate[32]
-        ordict['adac_currentstate_error_startracker_match'] = bitflags_currentstate[33]
-        ordict['adac_currentstate_error_startracker_overcurrent'] = bitflags_currentstate[34]
-        ordict['adac_currentstate_invalid_orbitparameters'] = bitflags_currentstate[35]
-        ordict['adac_currentstate_invalid_configuration'] = bitflags_currentstate[36]
-        ordict['adac_currentstate_invalid_controlmodechange'] = bitflags_currentstate[37]
-        ordict['adac_currentstate_invalid_estimatorchange'] = bitflags_currentstate[38]
-        ordict['adac_currentstate_error_magneticfield_modelmeasurementdisagree'] = bitflags_currentstate[39]
-        ordict['adac_currentstate_error_noderecovery'] = bitflags_currentstate[40]
-
-        ordict['adac_estimated_roll'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.01
-        ordict['adac_estimated_pitch'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.01
-        ordict['adac_estimated_yaw'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.01
-        ordict['adac_estimated_angularrate_x'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.01
-        ordict['adac_estimated_angularrate_y'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.01
-        ordict['adac_estimated_angularrate_z'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.01
-        ordict['adac_estimated_position_x'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.25
-        ordict['adac_estimated_position_y'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.25
-        ordict['adac_estimated_position_z'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.25
-        ordict['adac_estimated_velocity_x'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.25
-        ordict['adac_estimated_velocity_y'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.25
-        ordict['adac_estimated_velocity_z'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.25
-        ordict['adac_estimated_magneticfield_x'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.01
-        ordict['adac_estimated_magneticfield_y'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.01
-        ordict['adac_estimated_magneticfield_z'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.01
-        ordict['adac_estimated_sunvector_x'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.0001
-        ordict['adac_estimated_sunvector_y'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.0001
-        ordict['adac_estimated_sunvector_z'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.0001
-        ordict['adac_measured_angularrate_x'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.01
-        ordict['adac_measured_angularrate_y'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.01
-        ordict['adac_measured_angularrate_z'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.01
-        ordict['adac_measured_wheel_x'] = ParseDownlink._parsebinary(hexarray, 'int16')
-        ordict['adac_measured_wheel_y'] = ParseDownlink._parsebinary(hexarray, 'int16')
-        ordict['adac_measured_wheel_z'] = ParseDownlink._parsebinary(hexarray, 'int16')
-        ordict['adac_magnetorquer_commands_x'] = ParseDownlink._parsebinary(hexarray, 'int16') * 10
-        ordict['adac_magnetorquer_commands_y'] = ParseDownlink._parsebinary(hexarray, 'int16') * 10
-        ordict['adac_magnetorquer_commands_z'] = ParseDownlink._parsebinary(hexarray, 'int16') * 10
-        ordict['adac_ywheel_command'] = ParseDownlink._parsebinary(hexarray, 'int16')
-        ordict['adac_raw_sunsensor_xpos'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['adac_raw_sunsensor_ypos'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['adac_raw_sunsensor_zpos'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['adac_raw_sunsensor_xneg'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['adac_raw_sunsensor_yneg'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['adac_raw_sunsensor_zneg'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['adac_raw_magnetometer_x'] = ParseDownlink._parsebinary(hexarray, 'int16')
-        ordict['adac_raw_magnetometer_y'] = ParseDownlink._parsebinary(hexarray, 'int16')
-        ordict['adac_raw_magnetometer_z'] = ParseDownlink._parsebinary(hexarray, 'int16')
-        ordict['adac_current_3v3'] = ParseDownlink._parsebinary(hexarray, 'uint16') * 0.48828125
-        ordict['adac_current_5v'] = ParseDownlink._parsebinary(hexarray, 'uint16') * 0.48828125
-        ordict['adac_current_vbat'] = ParseDownlink._parsebinary(hexarray, 'uint16') * 0.48828125
-        ordict['adac_current_ywheel'] = ParseDownlink._parsebinary(hexarray, 'uint16') * 0.01
-        ordict['adac_temperature_mcu'] = ParseDownlink._parsebinary(hexarray, 'int16') * 1
-        ordict['adac_temperature_magnetometer'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.1
-        ordict['adac_temperature_ratesensor_x'] = ParseDownlink._parsebinary(hexarray, 'int16') * 1
-        ordict['adac_temperature_ratesensor_y'] = ParseDownlink._parsebinary(hexarray, 'int16') * 1
-        ordict['adac_temperature_ratesensor_z'] = ParseDownlink._parsebinary(hexarray, 'int16') * 1
-        ordict['adac_gpsstatus_solutionstatus'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['adac_gpsstatus_trackedsatellites'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['adac_gpsstatus_usedsatellites'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['adac_gpsstatus_xyzlofcounter'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['adac_gpsstatus_rangelogcounter'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['adac_gpsstatus_responsemessage'] = ParseDownlink._parsebinary(hexarray, 'uint8')
-        ordict['adac_gps_time'] = \
-            ParseDownlink._parsebinary(hexarray, 'uint32') / 1000 + 315964800 + \
-            (ParseDownlink._parsebinary(hexarray, 'uint16') + 2048) * 7 * 24 * 60 * 60
-        ordict['adac_gps_position_x'] = ParseDownlink._parsebinary(hexarray, 'int32') * 0.001
-        ordict['adac_gps_velocity_x'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.001
-        ordict['adac_gps_position_y'] = ParseDownlink._parsebinary(hexarray, 'int32') * 0.001
-        ordict['adac_gps_velocity_y'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.001
-        ordict['adac_gps_position_z'] = ParseDownlink._parsebinary(hexarray, 'int32') * 0.001
-        ordict['adac_gps_velocity_z'] = ParseDownlink._parsebinary(hexarray, 'int16') * 0.001
-
-        return ordict
 
     @staticmethod
     def _eps(hexarray):
@@ -815,11 +590,199 @@ class ParseDownlink:
         return sign * 2 ** (exponent - 1023) * mval
 
 
+def _readkss(fpath):
+    import re
+    import os
+
+    # Normalize path
+    fpath = os.path.normcase(fpath)
+
+    # Read file contents
+    with open(fpath, 'rb') as r:
+        contents = r.read()
+
+    # Split lines
+    rawlines = contents.splitlines()
+    datalines = []
+    packet = ''
+
+    # Callsign
+    callsigns = 'AEA468AA8C40E0AE9664B092886103F0'.lower()
+
+    # Possible prefix and suffix
+    linewrappers = {'prefix': 'c000', 'suffix': 'c0'}
+
+    for line in rawlines:
+
+        # Try to decode the line using utf-8 character set
+        try:
+            line = line.decode('utf-8')
+
+        # Catch invalid utf-8 encodings, we can't do anything with these
+        except UnicodeDecodeError:
+
+            # If data was being collected
+            if packet != '':
+
+                # Append that packet to the file's list
+                datalines += [packet]
+
+            # Reset packet string
+            packet = ''
+
+        # If there were no problems decoding
+        else:
+
+            # Format line before using regexp
+            line = line.lower().strip().replace(' ', '').replace('\t', '').replace('\r', '').replace('\n', '')
+
+            # Check if there was a match, indicating data is present on this line
+            match = re.search('[\d]{1,3}>', line)
+
+            # If a match was made
+            if match is not None:
+
+                # Extract the data from the line and append to string
+                packet = packet + line[match.span()[1]:]
+
+            else:
+
+                # If data was being collected
+                if packet != '':
+
+                    # Append that packet to the file's list
+                    datalines += [packet]
+
+                # Reset packet string
+                packet = ''
+
+    # Remove prefix and suffix
+    trimmedlines = [line[len(linewrappers['prefix']):-len(linewrappers['suffix'])] if line.startswith(linewrappers['prefix']) and line.endswith(linewrappers['suffix']) else line for line in datalines]
+
+    # Remove the callsigns
+    datapackets = [re.split(callsigns, line)[1] if re.search(callsigns, line) is not None else line for line in trimmedlines]
+
+    return datapackets
+
+
+def _readputtylog(fpath):
+    import os
+
+    # Normalize file path
+    fpath = os.path.normcase(fpath)
+
+    # Read file contents
+    with open(fpath, 'rb') as r:
+        contents = r.read()
+
+    # Split lines
+    rawlines = contents.splitlines()
+
+    # Iterate through each line
+    datapackets = []
+    validhex = '0123456789abcdef'
+    for line in rawlines:
+        try:
+
+            # Try to decode to utf-8
+            line = line.decode('utf-8')
+
+        except UnicodeDecodeError:
+
+            pass
+
+        else:
+
+            # Format string
+            line = line.lower().strip().replace(' ', '').replace('\t', '').replace('\r', '').replace('\n', '')
+
+            # Check if it contains any non-hex characters
+            if not any(c not in validhex for c in line) and line != '':
+                datapackets += [line]
+
+    return datapackets
+
+
+def _readimage(datapackets, savepath, filler='00'):
+    from statistics import mode
+    from math import ceil
+
+    # Swamp bytes in hex string
+    def _swaphex(hexstr):
+        from binascii import unhexlify, hexlify
+        return hexlify(unhexlify(hexstr)[::-1]).decode('utf-8')
+
+    # Returns unique lists based on values of list1 (elements in list2 are removed if a duplicate exists at that index in list1)
+    def _unique2(list1, list2):
+        if len(list1) != len(list2):
+            raise IOError('Lists must be the same length')
+        unique_list1 = []
+        unique_list2 = []
+        for k in range(len(list1)):
+            if list1[k] not in unique_list1:
+                unique_list1.append(list1[k])
+                unique_list2.append(list2[k])
+        return unique_list1, unique_list2
+
+    # Separate header from data and parse the header
+    data = [packet[0:512] for packet in datapackets if len(packet) >= 512]
+    totals = [int(_swaphex(packet[0:8]), 16) / 248 for packet in data]
+    packetids = [int(_swaphex(packet[8:16]), 16) / 248 for packet in data]
+    imdata = [packet[16:] for packet in data]
+
+    if len(totals) == 0:
+        return False
+
+    # Get the total number of packets to read
+    totalpackets = mode(totals)
+
+    # Remove any lines that do not match the most common packet length
+    imdata = [imdata[i] for i in range(len(imdata)) if totals[i] == totalpackets]
+    packetids = [packetids[i] for i in range(len(packetids)) if totals[i] == totalpackets]
+
+    # Remove lines that have an irregular/invalid packetid
+    imdata = [imdata[i] for i in range(len(imdata)) if 0 <= packetids[i] <= totalpackets and packetids[i] % 1 == 0]
+    packetids = [packetids[i] for i in range(len(packetids)) if 0 <= packetids[i] <= totalpackets and packetids[i] % 1 == 0]
+
+    # Convert remaining packet ids from float to int
+    packetids = [int(i) for i in packetids]
+
+    # Sort the two arrays
+    imdata = [i for _, i in sorted(zip(packetids, imdata))]
+    packetids.sort()
+
+    # Remove repeated packets
+    packetids, imdata = _unique2(packetids, imdata)
+
+    # Calculate the number of missing packets
+    missingids = [i for i in range(len(packetids)) if i not in packetids]
+    nummissing = len(missingids)
+
+    # Report the number of missing packets
+    print('\n\t\t %d missing data packets' % nummissing)
+
+    # Add filler to image to replace missing data packets
+    imfill = [filler * 248 if i not in packetids else imdata.pop(0) for i in range(ceil(totalpackets))]
+
+    # Convert from list of hex strings to bytearray
+    imbytes = bytearray(bytes.fromhex(''.join(imfill)))
+
+    # Write image to file, if image data was found
+    if nummissing < totalpackets:
+        with open(savepath, 'wb') as rfile:
+            rfile.write(imbytes)
+
+    # Return true if any image data was found
+    return nummissing < totalpackets
+
+
 def main():
     import os
     import datetime
+    import re
 
-    options = docopt(__doc__, version='1.0.10')  # parse options based on docstring above
+    # Parse options based on docstring above
+    options = docopt(__doc__, version='1.1.0')
 
     print('SwampSat II Beacon Parser (UF CubeSat)\n')
 
@@ -884,6 +847,10 @@ def main():
     # Add a timestamp to the file if the "[$TIMESTAMP]" marker still exists
     lpath = lpath.replace(os.path.normcase('[$TIMESTAMP]'), datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
 
+    # Replace the file extension if the image flag was included
+    if options['--image']:
+        lpath = os.path.splitext(lpath)[0] + '.jpg'
+
     # Make directory path to the logfile, if it doesn't already exist
     try:
         os.makedirs(os.path.split(lpath)[0], exist_ok=True)
@@ -906,29 +873,94 @@ def main():
         if len(output) > 0:
             print('\tString successfully read')
             print('\tLog file created:', lpath)
-        else:
-            print('\tProvided string is not valid')
 
     # If a file path was provided
     elif mode == 1:
 
+        # Read file extension from file path
+        if options['--filetype'] is None:
+
+            # .kss file
+            if os.path.splitext(file)[1].lower() == '.kss':
+                options['--filetype'] = '.kss'
+
+            # .txt or .log file
+            elif os.path.splitext(file)[1].lower() == '.log' or os.path.splitext(file)[1].lower() == '.txt':
+                options['--filetype'] = '.log'
+
+            # No valid file path found
+            else:
+                raise IOError('Log file extension must be either: {".txt", ".log", ".kss"}')
+
+        # .kss file type was specified
+        elif re.search('.kss', options['--filetype'].lower()) is not None:
+            options['--filetype'] = '.kss'
+
+        # .txt or .log file type was specified
+        elif re.search('.log', options['--filetype'].lower()) is not None or re.search('.txt', options['--filetype'].lower()) is not None:
+            options['--filetype'] = '.log'
+
+        # an unrecognized file type was specified
+        else:
+            raise IOError('Log file extension must be either: {".txt", ".log", ".kss"}')
+
+        # Open and read the file according to its expected format
         fpath = os.path.normcase(file.strip())
-        counter = 0
-        with open(fpath, 'rt', encoding='utf-8') as r:
-            for line in r:
+        if options['--filetype'] == '.log':
+            contents = _readputtylog(fpath)
 
-                # Call the parser
-                output = ParseDownlink.parserecord(line, lpath, delimiter)
+            # Try reading the other format (test for user input error)
+            if len(contents) == 0:
+                contents = _readkss(fpath)
 
-                # Check for parsed data
-                if len(output) > 0:
-                    print('\t\tLine successfully read')
-                    counter += 1
+                if len(contents) > 0:
+                    print('\tSwitched to read .kss format and found valid formatting\n')
+
+        else:  # options['--filetype'] == '.kss'
+            contents = _readkss(fpath)
+
+            # Try reading the other format (test for user input error)
+            if len(contents) == 0:
+                contents = _readputtylog(fpath)
+
+                if len(contents) > 0:
+                    print('\tSwitched to read .log/.txt format and found valid formatting\n')
+
+        # If data was read
+        if len(contents) > 0:
+
+            # Image parser
+            if options['--image']:
+
+                # Read image
+                if _readimage(contents, lpath):
+                    print('\n\tImage read successfully')
+                    print('\tLog file created:', lpath)
                 else:
-                    print('\t\tInvalid line')
-        print('\r\n\tSuccessfully read: ' + str(counter) + ' lines from file')
-        if counter > 0:
-            print('\tLog file created:', lpath)
+                    print('\n\tNo image data found')
+
+            # Beacon parser
+            else:
+
+                # Attempt to parse each line in the file
+                counter = 0
+                for line in contents:
+
+                    # Call the parser
+                    output = ParseDownlink.parserecord(line, lpath, delimiter)
+
+                    # Check for parsed data
+                    if len(output) > 0:
+                        print('\t\t+ Line successfully read')
+                        counter += 1
+
+                print('\n\tSuccessfully read: ' + str(counter) + ' lines from file')
+                if counter > 0:
+                    print('\tLog file created:', lpath)
+
+        # Catch no valid data error
+        else:
+            print('\tNo valid data found in file')
 
 
 if __name__ == "__main__":
