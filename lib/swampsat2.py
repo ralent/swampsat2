@@ -785,7 +785,7 @@ def main():
     import re
 
     # Parse options based on docstring above
-    options = docopt(__doc__, version='1.1.1')
+    options = docopt(__doc__, version='1.1.2')
 
     print('SwampSat II Beacon Parser (UF CubeSat)\n')
 
@@ -888,24 +888,25 @@ def main():
                 options['--filetype'] = '.kss'
 
             # .txt or .log file
-            elif os.path.splitext(file)[1].lower() == '.log' or os.path.splitext(file)[1].lower() == '.txt':
+            elif os.path.splitext(file)[1].lower() == '.log' or os.path.splitext(file)[1].lower() == '.txt' or os.path.splitext(file)[1].lower() == '.hex':
                 options['--filetype'] = '.log'
 
             # No valid file path found
             else:
-                raise IOError('Log file extension must be either: {".txt", ".log", ".kss"}')
+                raise IOError('Log file extension must be either: {".txt", ".log", ".hex", ".kss"}')
 
         # .kss file type was specified
         elif re.search('.kss', options['--filetype'].lower()) is not None:
             options['--filetype'] = '.kss'
 
         # .txt or .log file type was specified
-        elif re.search('.log', options['--filetype'].lower()) is not None or re.search('.txt', options['--filetype'].lower()) is not None:
+        elif re.search('.log', options['--filetype'].lower()) is not None or re.search('.txt', options['--filetype'].lower()) is not None \
+                or re.search('.hex', options['--filetype'].lower()) is not None:
             options['--filetype'] = '.log'
 
         # an unrecognized file type was specified
         else:
-            raise IOError('Log file extension must be either: {".txt", ".log", ".kss"}')
+            raise IOError('Log file extension must be either: {".txt", ".log", ".hex", ".kss"}')
 
         # Open and read the file according to its expected format
         fpath = os.path.normcase(file.strip())

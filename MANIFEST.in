@@ -1,3 +1,5 @@
 include README.md
 include LICENSE
-include sample_ss2_beacon_data.txt
+include sample_ss2_beacon_kss_file.kss
+include sample_ss2_beacon_txt_log_file.txt
+sample_ss2image_kss_file.kss
