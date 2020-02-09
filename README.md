@@ -84,7 +84,7 @@ Options:
 
 	-l LOGFILE, --logfile=LOGFILE  file where parsed data will be saved [default: [$HOME]/ss2logs/ss2beacon_parsed_[$TIMESTAMP].json]
 
-	-t FILETYPE, --filetype=FILETYPE     file type of input file (default behavior is to read the file extension, valid extensions are: '.txt', '.log', '.kss')
+	-t FILETYPE, --filetype=FILETYPE     file type of input file (default behavior is to read the file extension, valid extensions are: '.txt', '.log', '.hex', '.kss')
 
 	-i, --image                          flag to read data as jpg image (log name remains the same as default but a .jpg file extension is added)
 
@@ -101,7 +101,7 @@ Options:
 
 The `FILETYPE` option let's you provide the file type the parser should expect
 
-The parser can accept either `.log`, `.txt` or `.kss` files (`.log` and `.txt` are treated the same)
+The parser can accept either `.log`, `.txt`, `.hex`, or `.kss` files (`.log`, `.txt`, and `.hex are treated the same)
 
 The default behavior is to read the file type from the file path; thus this flag should usually not be necessary
 
