@@ -98,6 +98,9 @@ class ParseDownlink:
         # Expected packet lengths
         packetlens = {'eps': 116, 'battery': 15, 'vutrx': 28, 'ants': 4, 'stx': 22}
 
+        # Get timestamp
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S ') + datetime.datetime.now().astimezone().tzname()
+
         # Clean input
         hexstr_cleaned, errmsg = ParseDownlink._cleaninput(hexstr, dlim)
         length = len(hexstr_cleaned)
@@ -114,7 +117,7 @@ class ParseDownlink:
                       '74', '20', '49', '49']) in ''.join(hexstr_cleaned):
 
             self.compileddata = OrderedDict()
-            self.compileddata['timestamp'] = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+            self.compileddata['timestamp'] = timestamp
             self.compileddata['msgtype'] = 0
             self.compileddata['messagenum'] = 1
             self.compileddata['messagetotal'] = 1
@@ -148,7 +151,7 @@ class ParseDownlink:
             antsdata = self._ants(antslist)
 
             self.compileddata = OrderedDict()
-            self.compileddata['timestamp'] = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+            self.compileddata['timestamp'] = timestamp
             self.compileddata['msgtype'] = 3
             self.compileddata['messagenum'] = 2
             self.compileddata['messagetotal'] = 2
@@ -201,7 +204,7 @@ class ParseDownlink:
             stxdata = self._stx(stxlist)
 
             self.compileddata = OrderedDict()
-            self.compileddata['timestamp'] = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+            self.compileddata['timestamp'] = timestamp
             self.compileddata['msgtype'] = 4
             self.compileddata['messagenum'] = 2
             self.compileddata['messagetotal'] = 2
@@ -782,7 +785,7 @@ def main():
     import re
 
     # Parse options based on docstring above
-    options = docopt(__doc__, version='1.1.0')
+    options = docopt(__doc__, version='1.1.1')
 
     print('SwampSat II Beacon Parser (UF CubeSat)\n')
 
